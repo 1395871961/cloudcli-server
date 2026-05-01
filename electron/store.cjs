@@ -3,7 +3,7 @@ const Store = require('electron-store');
 const store = new Store({
   name: 'cloudcli-config',
   defaults: {
-    serverUrl: '',
+    serverUrl: 'https://cloudcli-server.onrender.com',
     token: '',
     deviceId: '',
     deviceName: '',

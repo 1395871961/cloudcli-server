@@ -176,15 +176,23 @@ export default function DevicesTab() {
             配置远程 VPS 信令服务器地址，手机端通过该服务器与本机建立 P2P 连接。
             开发测试时可使用本机服务器。
           </p>
-          <button
-            type="button"
-            onClick={() => {
-              setServerUrl(`${location.protocol}//${location.host}`);
-            }}
-            className="text-xs text-primary hover:underline"
-          >
-            使用本机服务器地址
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setServerUrl(`${location.protocol}//${location.host}`)}
+              className="text-xs text-primary hover:underline"
+            >
+              使用本机服务器地址
+            </button>
+            <span className="text-xs text-muted-foreground">|</span>
+            <button
+              type="button"
+              onClick={() => setServerUrl('https://cloudcli-server.onrender.com')}
+              className="text-xs text-primary hover:underline"
+            >
+              使用 Render 服务器
+            </button>
+          </div>
           <div className="space-y-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground">服务器地址</label>
