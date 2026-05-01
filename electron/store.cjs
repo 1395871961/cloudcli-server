@@ -5,6 +5,7 @@ const store = new Store({
   defaults: {
     serverUrl: 'https://cloudcli-server.onrender.com',
     token: '',
+    signalingToken: '',
     deviceId: '',
     deviceName: '',
     autoStart: true,
@@ -13,6 +14,7 @@ const store = new Store({
   schema: {
     serverUrl: { type: 'string' },
     token: { type: 'string' },
+    signalingToken: { type: 'string' },
     deviceId: { type: 'string' },
     deviceName: { type: 'string' },
     autoStart: { type: 'boolean' },

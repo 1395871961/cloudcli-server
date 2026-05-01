@@ -134,12 +134,6 @@ function createWindow() {
 
   mainWindow.loadURL(LOCAL_URL);
 
-  // Auto-sync auth token from localStorage whenever the page finishes loading
-  mainWindow.webContents.on('did-finish-load', () => syncTokenFromRenderer());
-
-  // Poll for token changes every 5s (picks up login without page reload)
-  setInterval(() => syncTokenFromRenderer(), 5000);
-
   mainWindow.on('close', (e) => {
     if (store.get('minimizeToTray') && !app.isQuitting) {
       e.preventDefault();
@@ -219,31 +213,13 @@ function setDeviceStatus(status) {
   mainWindow?.webContents.send('device-status', status);
 }
 
-// ─── Token Auto-Sync ─────────────────────────────────────────────────────────
-async function syncTokenFromRenderer() {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  try {
-    const token = await mainWindow.webContents.executeJavaScript(
-      'localStorage.getItem("auth-token")'
-    );
-    if (!token) return;
-    if (token !== store.get('token')) {
-      store.set('token', token);
-      console.log('[Main] Auth token synced from renderer, restarting signaling…');
-      restartSignaling();
-    }
-  } catch {
-    // page not ready yet, ignore
-  }
-}
-
 // ─── Signaling + WebRTC ───────────────────────────────────────────────────────
 function startSignaling() {
   const serverUrl = store.get('serverUrl');
-  const token = store.get('token');
+  const token = store.get('signalingToken');
 
   if (!serverUrl || !token) {
-    console.log('[Main] No server URL or token configured. Skipping signaling.');
+    console.log('[Main] No signaling token configured. Open Settings → Remote Devices to log in.');
     setDeviceStatus('disconnected');
     return;
   }
@@ -363,12 +339,13 @@ ipcMain.handle('get-config', () => ({
   serverUrl: store.get('serverUrl'),
   deviceId: store.get('deviceId'),
   deviceName: store.get('deviceName'),
+  signalingToken: store.get('signalingToken'),
   autoStart: store.get('autoStart'),
   minimizeToTray: store.get('minimizeToTray'),
 }));
 
 ipcMain.handle('set-config', (_event, data) => {
-  const keys = ['serverUrl', 'token', 'deviceName', 'autoStart', 'minimizeToTray'];
+  const keys = ['serverUrl', 'token', 'signalingToken', 'deviceName', 'autoStart', 'minimizeToTray'];
   for (const k of keys) {
     if (data[k] !== undefined) store.set(k, data[k]);
   }

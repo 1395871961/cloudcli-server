@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Smartphone, Monitor, Trash2, RefreshCw, Copy, Check, Wifi, WifiOff, Plus, Server, Save, RotateCcw } from 'lucide-react';
+import { Smartphone, Monitor, Trash2, RefreshCw, Copy, Check, Wifi, Plus, Server, RotateCcw } from 'lucide-react';
 
 declare global {
   interface Window {
     electronAPI?: {
-      getConfig: () => Promise<{ serverUrl: string; deviceName: string; autoStart: boolean }>;
+      getConfig: () => Promise<{ serverUrl: string; deviceName: string; autoStart: boolean; signalingToken?: string }>;
       setConfig: (data: Record<string, unknown>) => Promise<boolean>;
       getDeviceStatus: () => Promise<string>;
       onStatusChange: (cb: (s: string) => void) => () => void;
@@ -41,8 +41,12 @@ export default function DevicesTab() {
   const [signalingStatus, setSignalingStatus] = useState<string>('disconnected');
   const [serverUrl, setServerUrl] = useState('');
   const [deviceName, setDeviceName] = useState('');
-  const [savingConfig, setSavingConfig] = useState(false);
-  const [configSaved, setConfigSaved] = useState(false);
+  // Signaling server login
+  const [signalingUsername, setSignalingUsername] = useState('');
+  const [signalingPassword, setSignalingPassword] = useState('');
+  const [signalingLoginLoading, setSignalingLoginLoading] = useState(false);
+  const [signalingLoginError, setSignalingLoginError] = useState('');
+  const [hasSignalingToken, setHasSignalingToken] = useState(false);
 
   const token = localStorage.getItem('auth-token') ?? '';
 
@@ -73,19 +77,65 @@ export default function DevicesTab() {
     window.electronAPI.getConfig().then((cfg) => {
       setServerUrl(cfg.serverUrl ?? '');
       setDeviceName(cfg.deviceName ?? '');
+      setHasSignalingToken(Boolean(cfg.signalingToken));
     });
     window.electronAPI.getDeviceStatus().then(setSignalingStatus);
     const unsub = window.electronAPI.onStatusChange(setSignalingStatus);
     return unsub;
   }, []);
 
-  const saveElectronConfig = async () => {
+  const loginToSignalingServer = async () => {
+    if (!window.electronAPI || !serverUrl || !signalingUsername || !signalingPassword) return;
+    setSignalingLoginLoading(true);
+    setSignalingLoginError('');
+    try {
+      // Try login first
+      let res = await fetch(`${serverUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: signalingUsername, password: signalingPassword }),
+      });
+      // If login fails (user doesn't exist), auto-register
+      if (!res.ok) {
+        const loginErr = await res.json().catch(() => ({}));
+        if (res.status === 401 || res.status === 403) {
+          // Try to register on the remote signaling server
+          const regRes = await fetch(`${serverUrl}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: signalingUsername, password: signalingPassword }),
+          });
+          if (regRes.ok) {
+            res = regRes;
+          } else {
+            const regErr = await regRes.json().catch(() => ({}));
+            setSignalingLoginError(regErr.error ?? loginErr.error ?? '登录或注册失败');
+            setSignalingLoginLoading(false);
+            return;
+          }
+        } else {
+          setSignalingLoginError(loginErr.error ?? '服务器错误，请稍后重试');
+          setSignalingLoginLoading(false);
+          return;
+        }
+      }
+      const data = await res.json();
+      const t = data.token;
+      if (!t) { setSignalingLoginError('未获取到 token，请重试'); setSignalingLoginLoading(false); return; }
+      await window.electronAPI.setConfig({ signalingToken: t, serverUrl, deviceName });
+      setHasSignalingToken(true);
+      setSignalingPassword('');
+    } catch (e) {
+      setSignalingLoginError('网络错误，请检查服务器地址');
+    } finally {
+      setSignalingLoginLoading(false);
+    }
+  };
+
+  const disconnectSignaling = async () => {
     if (!window.electronAPI) return;
-    setSavingConfig(true);
-    await window.electronAPI.setConfig({ serverUrl, deviceName });
-    setSavingConfig(false);
-    setConfigSaved(true);
-    setTimeout(() => setConfigSaved(false), 2000);
+    await window.electronAPI.setConfig({ signalingToken: '' });
+    setHasSignalingToken(false);
   };
 
   // Countdown for pair code expiry
@@ -176,58 +226,78 @@ export default function DevicesTab() {
             配置远程 VPS 信令服务器地址，手机端通过该服务器与本机建立 P2P 连接。
             开发测试时可使用本机服务器。
           </p>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setServerUrl(`${location.protocol}//${location.host}`)}
-              className="text-xs text-primary hover:underline"
-            >
-              使用本机服务器地址
-            </button>
-            <span className="text-xs text-muted-foreground">|</span>
-            <button
-              type="button"
-              onClick={() => setServerUrl('https://cloudcli-server.onrender.com')}
-              className="text-xs text-primary hover:underline"
-            >
-              使用 Render 服务器
-            </button>
-          </div>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">服务器地址</label>
-              <input
-                type="url"
-                value={serverUrl}
-                onChange={(e) => setServerUrl(e.target.value)}
-                placeholder="https://your-vps.example.com"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
+          {/* Server URL + device name (collapsed when already connected) */}
+          {!hasSignalingToken && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">信令服务器地址</label>
+                <input
+                  type="url"
+                  value={serverUrl}
+                  onChange={(e) => setServerUrl(e.target.value)}
+                  placeholder="https://cloudcli-server.onrender.com"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setServerUrl('https://cloudcli-server.onrender.com')} className="text-xs text-primary hover:underline">Render 服务器</button>
+                  <span className="text-xs text-muted-foreground">|</span>
+                  <button type="button" onClick={() => setServerUrl(`${location.protocol}//${location.host}`)} className="text-xs text-primary hover:underline">本机地址</button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">设备名称</label>
+                <input
+                  type="text"
+                  value={deviceName}
+                  onChange={(e) => setDeviceName(e.target.value)}
+                  placeholder="我的电脑"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">设备名称</label>
-              <input
-                type="text"
-                value={deviceName}
-                onChange={(e) => setDeviceName(e.target.value)}
-                placeholder="我的电脑"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
+          )}
+
+          {/* Signaling server login */}
+          {hasSignalingToken ? (
+            <div className="flex items-center justify-between rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-3 py-2">
+              <span className="text-sm text-green-700 dark:text-green-400 flex items-center gap-2">
+                <Wifi className="h-4 w-4" /> 已登录信令服务器，可接受手机连接
+              </span>
+              <button type="button" onClick={disconnectSignaling} className="text-xs text-red-500 hover:underline">断开</button>
             </div>
-          </div>
-          <button
-            type="button"
-            disabled={savingConfig}
-            onClick={saveElectronConfig}
-            className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
-          >
-            {configSaved
-              ? <><Check className="h-4 w-4" />已保存</>
-              : savingConfig
-              ? <><RotateCcw className="h-4 w-4 animate-spin" />保存中…</>
-              : <><Save className="h-4 w-4" />保存并重连</>
-            }
-          </button>
+          ) : (
+            <div className="space-y-3 rounded-md border border-dashed border-border p-3">
+              <p className="text-xs text-muted-foreground">登录信令服务器后，手机可通过相同账号发现并连接此设备。首次登录将自动注册账号。</p>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={signalingUsername}
+                  onChange={(e) => setSignalingUsername(e.target.value)}
+                  placeholder="用户名"
+                  className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                <input
+                  type="password"
+                  value={signalingPassword}
+                  onChange={(e) => setSignalingPassword(e.target.value)}
+                  placeholder="密码"
+                  onKeyDown={(e) => e.key === 'Enter' && loginToSignalingServer()}
+                  className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+              {signalingLoginError && <p className="text-xs text-red-500">{signalingLoginError}</p>}
+              <button
+                type="button"
+                disabled={signalingLoginLoading || !signalingUsername || !signalingPassword}
+                onClick={loginToSignalingServer}
+                className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+              >
+                {signalingLoginLoading
+                  ? <><RotateCcw className="h-4 w-4 animate-spin" />连接中…</>
+                  : <><Wifi className="h-4 w-4" />登录并连接信令服务器</>}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
