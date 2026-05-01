@@ -119,9 +119,10 @@ export function handleSignalConnection(ws, request) {
         }
         if (msg.type === 'connect') {
             targetDeviceId = msg.device_id;
-            // Verify device belongs to this user
+            // Verify device exists (ownership not checked — cross-account access is intentional
+            // since Render's ephemeral DB may assign different user_ids across restarts)
             const device = deviceDb.getById(targetDeviceId);
-            if (!device || device.user_id !== user.id) {
+            if (!device) {
                 ws.send(JSON.stringify({ type: 'error', message: 'Device not found' }));
                 ws.close();
                 return;

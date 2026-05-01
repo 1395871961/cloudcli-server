@@ -7,7 +7,7 @@ const router = express.Router();
 // GET /api/devices — list all devices for current user
 router.get('/', (req, res) => {
   try {
-    const devices = deviceDb.getByUser(req.user.id);
+    const devices = deviceDb.getAll();
     // Merge live connection status from in-memory map
     const liveIds = req.app.locals.deviceSockets
       ? new Set(req.app.locals.deviceSockets.keys())

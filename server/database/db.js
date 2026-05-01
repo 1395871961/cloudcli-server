@@ -583,6 +583,10 @@ const deviceDb = {
     return db.prepare('SELECT * FROM devices WHERE user_id = ? ORDER BY last_seen DESC').all(userId);
   },
 
+  getAll: () => {
+    return db.prepare('SELECT * FROM devices ORDER BY last_seen DESC').all();
+  },
+
   getById: (id) => {
     return db.prepare('SELECT * FROM devices WHERE id = ?').get(id);
   },
