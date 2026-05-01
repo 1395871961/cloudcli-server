@@ -337,6 +337,15 @@ app.use('/api/remote', remoteRoutes);
 // Serve public files (like sw.js, manifest.json)
 app.use(express.static(path.join(APP_ROOT, 'public')));
 
+// On Render (non-localhost), redirect root / to /mobile so phones land on pairing page
+app.get('/', (req, res, next) => {
+    const host = req.hostname || '';
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+        return res.redirect(302, '/mobile');
+    }
+    next();
+});
+
 // Mobile pairing page — served at /mobile so root / still serves the React SPA
 app.get('/mobile', (req, res) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
