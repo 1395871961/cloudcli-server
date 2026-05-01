@@ -68,6 +68,7 @@ app.whenReady().then(async () => {
   createTray();
   createWindow();
   startSignaling();
+  startKeepAlive();
 
   // Auto-start config
   applyAutoStart();
@@ -357,6 +358,25 @@ ipcMain.handle('set-config', (_event, data) => {
 ipcMain.handle('get-device-status', () => deviceStatus);
 
 ipcMain.handle('open-external', (_event, url) => shell.openExternal(url));
+
+// ─── Keep-Alive ──────────────────────────────────────────────────────────────
+function startKeepAlive() {
+  const INTERVAL = 14 * 60 * 1000; // 14 minutes
+  const ping = () => {
+    const url = store.get('serverUrl');
+    if (!url) return;
+    const target = `${url}/health`;
+    const mod = target.startsWith('https') ? require('https') : require('http');
+    const req = mod.get(target, (res) => {
+      console.log(`[KeepAlive] ${target} → ${res.statusCode}`);
+      res.resume();
+    });
+    req.on('error', (e) => console.log('[KeepAlive] ping failed:', e.message));
+    req.end();
+  };
+  ping(); // immediate first ping
+  setInterval(ping, INTERVAL);
+}
 
 // ─── Auto Start ──────────────────────────────────────────────────────────────
 function applyAutoStart() {
