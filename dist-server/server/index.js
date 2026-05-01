@@ -280,8 +280,13 @@ app.use('/api/agent', agentRoutes);
 app.use('/api/devices', authenticateToken, devicesRoutes);
 // Electron remote command relay (localhost-only, no auth middleware)
 app.use('/api/remote', remoteRoutes);
-// Serve public files (like api-docs.html)
+// Serve public files (like sw.js, manifest.json)
 app.use(express.static(path.join(APP_ROOT, 'public')));
+// Mobile pairing page — served at /mobile so root / still serves the React SPA
+app.get('/mobile', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.sendFile(path.join(APP_ROOT, 'public', 'mobile.html'));
+});
 // Static files served after API routes
 // Add cache control: HTML files should not be cached, but assets can be cached
 app.use(express.static(path.join(APP_ROOT, 'dist'), {

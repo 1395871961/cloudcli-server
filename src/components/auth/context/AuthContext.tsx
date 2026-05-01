@@ -125,8 +125,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return;
     }
 
-    void checkAuthStatus();
-  }, [checkAuthStatus, checkOnboardingStatus]);
+    void (async () => {
+      await checkAuthStatus();
+      // In Electron: if user is logged in but signalingToken is empty (e.g. after
+      // Render DB reset), force re-login so autoConnectSignaling runs with fresh creds.
+      if (typeof window !== 'undefined' && window.electronAPI) {
+        const cfg = await window.electronAPI.getConfig();
+        if (!cfg.signalingToken && cfg.connectionMode !== 'offline') {
+          clearSession();
+        }
+      }
+    })();
+  }, [checkAuthStatus, checkOnboardingStatus, clearSession]);
 
   const autoConnectSignaling = useCallback(async (username: string, password: string) => {
     if (typeof window === 'undefined' || !window.electronAPI) return;

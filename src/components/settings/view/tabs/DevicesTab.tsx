@@ -4,7 +4,7 @@ import { Smartphone, Monitor, Trash2, RefreshCw, Copy, Check, Wifi, WifiOff, Plu
 declare global {
   interface Window {
     electronAPI?: {
-      getConfig: () => Promise<{ serverUrl: string; deviceName: string; deviceId?: string; autoStart: boolean; signalingToken?: string; connectionMode?: string }};
+      getConfig: () => Promise<{ serverUrl: string; deviceName: string; deviceId?: string; autoStart: boolean; signalingToken?: string; connectionMode?: string }>;
       setConfig: (data: Record<string, unknown>) => Promise<boolean>;
       getDeviceStatus: () => Promise<string>;
       onStatusChange: (cb: (s: string) => void) => () => void;
