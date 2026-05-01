@@ -84,6 +84,7 @@
     "@octokit/rest": "^22.0.0",
     "@openai/codex-sdk": "^0.101.0",
     "@replit/codemirror-minimap": "^0.5.2",
+    "@roamhq/wrtc": "^0.10.0",
     "@tailwindcss/typography": "^0.5.16",
     "@uiw/react-codemirror": "^4.23.13",
     "@xterm/addon-clipboard": "^0.1.0",

@@ -53,12 +53,23 @@ export function handleDeviceConnection(ws, request) {
             deviceId = msg.device_id;
             const name = msg.device_name || 'Unknown Device';
             const platform = msg.platform || 'unknown';
-            deviceDb.upsert(deviceId, user.id, name, platform);
-            if (deviceSockets)
-                deviceSockets.set(deviceId, ws);
-            console.log(`[Signal] Device registered: ${deviceId} (${name}) user=${user.id}`);
-            ws.send(JSON.stringify({ type: 'registered', device_id: deviceId }));
-            resetPongTimer();
+            if (!user?.id) {
+                console.error('[Signal] Cannot register device: user.id is null');
+                ws.close(4003, 'Authentication error');
+                return;
+            }
+            try {
+                deviceDb.upsert(deviceId, user.id, name, platform);
+                if (deviceSockets)
+                    deviceSockets.set(deviceId, ws);
+                console.log(`[Signal] Device registered: ${deviceId} (${name}) user=${user.id}`);
+                ws.send(JSON.stringify({ type: 'registered', device_id: deviceId }));
+                resetPongTimer();
+            }
+            catch (err) {
+                console.error('[Signal] Device register DB error:', err.message);
+                ws.close(4004, 'Server error');
+            }
             return;
         }
         // Forward signaling messages to the target mobile client
