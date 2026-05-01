@@ -93,7 +93,7 @@ self.addEventListener('fetch', event => {
   }
 
   // Hashed assets (JS/CSS in /assets/) — cache-first since filenames change per build
-  if (url.includes('/assets/')) {
+  if (href.includes('/assets/')) {
     event.respondWith(
       caches.match(event.request).then(cached => {
         if (cached) return cached;

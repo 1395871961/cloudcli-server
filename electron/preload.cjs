@@ -16,6 +16,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Push local auth token to main process (used to authenticate P2P proxied requests)
   syncLocalToken: (token) => ipcRenderer.invoke('sync-local-token', token),
 
+  // Signaling auth failure notification
+  onSignalingAuthFailed: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on('signaling-auth-failed', handler);
+    return () => ipcRenderer.removeListener('signaling-auth-failed', handler);
+  },
+
   // Misc
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   platform: process.platform,

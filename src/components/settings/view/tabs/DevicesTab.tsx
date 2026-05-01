@@ -9,6 +9,7 @@ declare global {
       getDeviceStatus: () => Promise<string>;
       onStatusChange: (cb: (s: string) => void) => () => void;
       syncLocalToken?: (token: string) => Promise<void>;
+      onSignalingAuthFailed?: (cb: () => void) => (() => void) | undefined;
       openExternal?: (url: string) => void;
     };
   }

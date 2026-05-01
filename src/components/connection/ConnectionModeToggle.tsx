@@ -12,6 +12,7 @@ const MODES: { value: Mode; label: string; icon: React.ReactNode; title: string 
 export default function ConnectionModeToggle() {
   const [mode, setMode] = useState<Mode>('online');
   const [saving, setSaving] = useState(false);
+  const [signalingOk, setSignalingOk] = useState(true);
 
   const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
 
@@ -20,7 +21,10 @@ export default function ConnectionModeToggle() {
     api.getConfig().then(cfg => {
       const m = cfg.connectionMode;
       if (m === 'lan' || m === 'offline' || m === 'online') setMode(m);
+      setSignalingOk(!!(cfg.signalingToken));
     });
+    const unsub = api.onSignalingAuthFailed?.(() => setSignalingOk(false));
+    return () => unsub?.();
   }, [api]);
 
   const select = async (m: Mode) => {

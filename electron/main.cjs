@@ -259,6 +259,13 @@ function startSignaling() {
     setDeviceStatus(s === 'connected' ? 'connected' : s);
   });
 
+  webrtc.on('auth-failed', () => {
+    console.warn('[Main] Signaling auth failed — clearing token, requesting renderer re-auth');
+    store.set('signalingToken', '');
+    setDeviceStatus('disconnected');
+    mainWindow?.webContents.send('signaling-auth-failed');
+  });
+
   webrtc.on('channel-open', (sessionId) => {
     setDeviceStatus('p2p-active');
     console.log('[Main] Mobile P2P channel open:', sessionId);

@@ -150,8 +150,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       const data = await res.json().catch(() => ({}));
       if (data.token) {
-        await window.electronAPI.setConfig({ signalingToken: data.token });
+        await window.electronAPI.setConfig({ signalingToken: data.token, signalingUsername: username });
         console.log('[Auth] Signaling token auto-configured');
+        // Restart signaling with the new token
+        await window.electronAPI.setConfig({ connectionMode: (await window.electronAPI.getConfig()).connectionMode });
       }
     } catch {
       // non-critical — ignore
@@ -176,6 +178,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         await checkOnboardingStatus();
         window.electronAPI?.syncLocalToken?.(payload.token);
         void autoConnectSignaling(username, password);
+        // Listen for auth-failed so we can immediately re-auth this session
+        const unsub = window.electronAPI?.onSignalingAuthFailed?.(() => {
+          void autoConnectSignaling(username, password);
+          unsub?.();
+        });
         return { success: true };
       } catch (caughtError) {
         console.error('Login error:', caughtError);

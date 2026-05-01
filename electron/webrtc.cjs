@@ -93,7 +93,13 @@ class DeviceWebRTC extends EventEmitter {
 
       ws.on('error', (err) => {
         console.error('[WebRTC] WS error:', err.message);
-        this.emit('status', 'error');
+        if (err.message?.includes('401')) {
+          console.warn('[WebRTC] Auth failed (401) — clearing token and stopping reconnect');
+          this._stopped = true;
+          this.emit('auth-failed');
+        } else {
+          this.emit('status', 'error');
+        }
       });
     } catch (err) {
       console.error('[WebRTC] connect error:', err.message);
