@@ -58,6 +58,11 @@ app.whenReady().then(async () => {
   if (!store.get('deviceName')) {
     store.set('deviceName', require('os').hostname());
   }
+  // Auto-set Render server URL if not configured
+  if (!store.get('serverUrl')) {
+    store.set('serverUrl', 'https://cloudcli-server.onrender.com');
+    console.log('[Main] Auto-configured serverUrl → Render');
+  }
 
   await startLocalServer();
   createTray();
@@ -129,6 +134,12 @@ function createWindow() {
   });
 
   mainWindow.loadURL(LOCAL_URL);
+
+  // Auto-sync auth token from localStorage whenever the page finishes loading
+  mainWindow.webContents.on('did-finish-load', () => syncTokenFromRenderer());
+
+  // Poll for token changes every 5s (picks up login without page reload)
+  setInterval(() => syncTokenFromRenderer(), 5000);
 
   mainWindow.on('close', (e) => {
     if (store.get('minimizeToTray') && !app.isQuitting) {
@@ -207,6 +218,24 @@ function setDeviceStatus(status) {
   deviceStatus = status;
   updateTrayMenu();
   mainWindow?.webContents.send('device-status', status);
+}
+
+// ─── Token Auto-Sync ─────────────────────────────────────────────────────────
+async function syncTokenFromRenderer() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    const token = await mainWindow.webContents.executeJavaScript(
+      'localStorage.getItem("auth-token")'
+    );
+    if (!token) return;
+    if (token !== store.get('token')) {
+      store.set('token', token);
+      console.log('[Main] Auth token synced from renderer, restarting signaling…');
+      restartSignaling();
+    }
+  } catch {
+    // page not ready yet, ignore
+  }
 }
 
 // ─── Signaling + WebRTC ───────────────────────────────────────────────────────
