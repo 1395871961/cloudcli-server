@@ -1,0 +1,73 @@
+appId: ai.cloudcli.desktop
+productName: CloudCLI
+copyright: Copyright © 2024 CloudCLI Contributors
+
+# Entry point
+main: electron/main.cjs
+
+directories:
+  output: dist-electron
+  buildResources: public
+
+files:
+  - electron/**
+  - dist/**          # built Vite frontend
+  - dist-server/**   # compiled server
+  - server/**        # needed for dev builds
+  - shared/**
+  - public/**
+  - package.json
+
+# Include the server runtime in the package
+extraResources:
+  - from: dist-server/
+    to: server/
+  - from: public/
+    to: .
+
+# Windows
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: public/icons/icon-256x256.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: CloudCLI
+
+# macOS
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  icon: public/icons/icon-512x512.png
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+  gatekeeperAssess: false
+
+dmg:
+  title: CloudCLI ${version}
+
+# Linux
+linux:
+  target:
+    - AppImage
+    - deb
+    - rpm
+  icon: public/icons/
+  category: Development
+  synopsis: Mobile remote control for Claude CLI
+  description: Control your computer's Claude CLI from your mobile device via P2P WebRTC.
+
+deb:
+  depends:
+    - libnotify4
+    - libxtst6
+    - libnss3
+
+appImage:
+  artifactName: CloudCLI-${version}.AppImage
