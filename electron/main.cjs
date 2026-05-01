@@ -94,13 +94,12 @@ app.on('before-quit', () => {
 // ─── Local Server ────────────────────────────────────────────────────────────
 function startLocalServer() {
   return new Promise((resolve) => {
-    const serverEntry = isDev
-      ? path.join(__dirname, '..', 'server', 'index.js')
-      : path.join(process.resourcesPath, 'server', 'index.js');
+    const serverEntry = app.isPackaged
+      ? path.join(process.resourcesPath, 'server', 'index.js')
+      : path.join(__dirname, '..', 'dist-server', 'server', 'index.js');
 
     serverProcess = fork(serverEntry, [], {
       env: { ...process.env, SERVER_PORT: String(LOCAL_PORT), ELECTRON: '1' },
-      execArgv: isDev ? ['--require', 'tsx/cjs'] : [],
       silent: false,
     });
 
