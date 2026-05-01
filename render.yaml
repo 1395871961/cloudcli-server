@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: cloudcli-server
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install --omit=dev
+    startCommand: node dist-server/server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SERVER_PORT
+        value: "3001"
+      - key: HOST
+        value: "0.0.0.0"
