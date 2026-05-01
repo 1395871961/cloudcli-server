@@ -49,6 +49,9 @@ app.on('second-instance', () => {
   }
 });
 
+// Local auth token (read from renderer after login; used to proxy P2P requests)
+let localToken = '';
+
 // ─── App Events ─────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
   // Ensure a device ID exists
@@ -69,6 +72,8 @@ app.whenReady().then(async () => {
   createWindow();
   startSignaling();
   startKeepAlive();
+  // Sync local token once after page loads
+  ipcMain.handle('sync-local-token', (_event, token) => { localToken = token || ''; });
 
   // Auto-start config
   applyAutoStart();
@@ -216,11 +221,24 @@ function setDeviceStatus(status) {
 
 // ─── Signaling + WebRTC ───────────────────────────────────────────────────────
 function startSignaling() {
-  const serverUrl = store.get('serverUrl');
-  const token = store.get('signalingToken');
+  const mode = store.get('connectionMode') || 'online';
+  if (mode === 'offline') {
+    console.log('[Main] Connection mode is offline — signaling disabled.');
+    setDeviceStatus('disconnected');
+    return;
+  }
+
+  const signalingToken = store.get('signalingToken');
+  let serverUrl = store.get('serverUrl');
+
+  if (mode === 'lan') {
+    serverUrl = `http://127.0.0.1:${LOCAL_PORT}`;
+  }
+
+  const token = mode === 'lan' ? (localToken || store.get('token')) : signalingToken;
 
   if (!serverUrl || !token) {
-    console.log('[Main] No signaling token configured. Open Settings → Remote Devices to log in.');
+    console.log('[Main] No signaling token configured. Log in first.');
     setDeviceStatus('disconnected');
     return;
   }
@@ -267,6 +285,12 @@ function handleMobileMessage(sessionId, raw) {
   let msg;
   try { msg = JSON.parse(raw); } catch { return; }
 
+  // Mobile requests the local server token so it can authenticate API calls
+  if (msg.type === 'request-local-token') {
+    webrtc?.send(sessionId, JSON.stringify({ type: 'local-token', token: localToken }));
+    return;
+  }
+
   // Port proxy: tunnel HTTP request to local service
   if (msg.type === 'http-request') {
     proxyHttpRequest(sessionId, msg);
@@ -281,12 +305,18 @@ function handleMobileMessage(sessionId, raw) {
 function proxyHttpRequest(sessionId, msg) {
   const { requestId, port, method, path: reqPath, headers, body } = msg;
 
+  // Inject local auth token for requests to the local server
+  const enrichedHeaders = { ...(headers || {}) };
+  if (localToken && !enrichedHeaders['authorization'] && !enrichedHeaders['Authorization']) {
+    enrichedHeaders['authorization'] = `Bearer ${localToken}`;
+  }
+
   const options = {
     hostname: '127.0.0.1',
     port,
     method: method || 'GET',
     path: reqPath || '/',
-    headers: headers || {},
+    headers: enrichedHeaders,
   };
 
   const req = http.request(options, (res) => {
@@ -341,12 +371,13 @@ ipcMain.handle('get-config', () => ({
   deviceId: store.get('deviceId'),
   deviceName: store.get('deviceName'),
   signalingToken: store.get('signalingToken'),
+  connectionMode: store.get('connectionMode') || 'online',
   autoStart: store.get('autoStart'),
   minimizeToTray: store.get('minimizeToTray'),
 }));
 
 ipcMain.handle('set-config', (_event, data) => {
-  const keys = ['serverUrl', 'token', 'signalingToken', 'deviceName', 'autoStart', 'minimizeToTray'];
+  const keys = ['serverUrl', 'token', 'signalingToken', 'connectionMode', 'deviceName', 'autoStart', 'minimizeToTray'];
   for (const k of keys) {
     if (data[k] !== undefined) store.set(k, data[k]);
   }

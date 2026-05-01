@@ -1,4 +1,5 @@
 import { Settings, ArrowUpCircle, Bug } from 'lucide-react';
+import ConnectionModeToggle from '../../../connection/ConnectionModeToggle';
 import type { TFunction } from 'i18next';
 import { IS_PLATFORM } from '../../../../constants/config';
 import type { ReleaseInfo } from '../../../../types/sharedTypes';
@@ -113,6 +114,9 @@ export default function SidebarFooter({
           <span className="text-sm">{t('actions.joinCommunity')}</span>
         </a>
       </div>
+
+      {/* Connection mode toggle (Electron only, desktop) */}
+      <ConnectionModeToggle />
 
       {/* Desktop settings */}
       <div className="hidden px-2 py-1.5 md:block">

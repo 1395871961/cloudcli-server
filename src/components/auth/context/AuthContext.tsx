@@ -128,6 +128,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
     void checkAuthStatus();
   }, [checkAuthStatus, checkOnboardingStatus]);
 
+  const autoConnectSignaling = useCallback(async (username: string, password: string) => {
+    if (typeof window === 'undefined' || !window.electronAPI) return;
+    try {
+      const cfg = await window.electronAPI.getConfig();
+      const serverUrl = cfg.serverUrl;
+      if (!serverUrl) return;
+      let res = await fetch(`${serverUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!res.ok) {
+        const regRes = await fetch(`${serverUrl}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        if (regRes.ok) res = regRes;
+        else return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (data.token) {
+        await window.electronAPI.setConfig({ signalingToken: data.token });
+        console.log('[Auth] Signaling token auto-configured');
+      }
+    } catch {
+      // non-critical — ignore
+    }
+  }, []);
+
   const login = useCallback<AuthContextValue['login']>(
     async (username, password) => {
       try {
@@ -144,6 +174,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setSession(payload.user, payload.token);
         setNeedsSetup(false);
         await checkOnboardingStatus();
+        window.electronAPI?.syncLocalToken?.(payload.token);
+        void autoConnectSignaling(username, password);
         return { success: true };
       } catch (caughtError) {
         console.error('Login error:', caughtError);
@@ -151,7 +183,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { success: false, error: AUTH_ERROR_MESSAGES.networkError };
       }
     },
-    [checkOnboardingStatus, setSession],
+    [autoConnectSignaling, checkOnboardingStatus, setSession],
   );
 
   const register = useCallback<AuthContextValue['register']>(
