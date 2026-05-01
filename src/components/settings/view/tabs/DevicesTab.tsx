@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Smartphone, Monitor, Trash2, RefreshCw, Copy, Check, Wifi, Plus, Server, RotateCcw } from 'lucide-react';
+import { Smartphone, Monitor, Trash2, RefreshCw, Copy, Check, Wifi, WifiOff, Plus, Server, RotateCcw } from 'lucide-react';
 
 declare global {
   interface Window {
