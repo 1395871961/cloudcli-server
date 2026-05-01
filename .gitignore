@@ -7,9 +7,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Build outputs
-dist/
-dist-server/
-dist-ssr/
+
+
+
 build/
 out/
 
@@ -145,3 +145,5 @@ tasks/
 
 # Git worktrees
 .worktrees/
+
+PRIVATE_NOTES.md
