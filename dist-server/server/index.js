@@ -2142,7 +2142,7 @@ async function getFileTree(dirPath, maxDepth = 3, currentDepth = 0, showHidden =
         return a.name.localeCompare(b.name);
     });
 }
-const SERVER_PORT = process.env.SERVER_PORT || 3001;
+const SERVER_PORT = process.env.PORT || process.env.SERVER_PORT || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 const DISPLAY_HOST = getConnectableHost(HOST);
 const VITE_PORT = process.env.VITE_PORT || 5173;
