@@ -6,7 +6,8 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --ignore-scripts && node scripts/fix-node-pty.js 2>/dev/null || true
+COPY scripts ./scripts
+RUN npm ci
 
 COPY . .
 RUN npm run build
@@ -20,11 +21,11 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --omit=dev --ignore-scripts && node scripts/fix-node-pty.js 2>/dev/null || true
+COPY scripts ./scripts
+RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/dist-server ./dist-server
-COPY scripts ./scripts
 COPY server ./server
 COPY shared ./shared
 
