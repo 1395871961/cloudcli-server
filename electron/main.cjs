@@ -118,6 +118,10 @@ function startLocalServer() {
 
     serverProcess.on('exit', (code) => {
       console.log('[Main] Server process exited with code', code);
+      if (code !== 0 && !app.isQuitting) {
+        console.log('[Main] Server crashed — restarting in 2s…');
+        setTimeout(() => startLocalServer(), 2000);
+      }
     });
   });
 }
