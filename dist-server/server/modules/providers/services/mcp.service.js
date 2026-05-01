@@ -1,6 +1,6 @@
 import os from 'node:os';
-import { providerRegistry } from '@/modules/providers/provider.registry.js';
-import { AppError } from '@/shared/utils.js';
+import { providerRegistry } from '../provider.registry.js';
+import { AppError } from '../../../shared/utils.js';
 /** Cursor MCP is not supported on Windows hosts (no Cursor CLI integration). */
 function includeProviderInGlobalMcp(providerId) {
     if (providerId === 'cursor' && os.platform() === 'win32') {

@@ -2,8 +2,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import TOML from '@iarna/toml';
-import { McpProvider } from '@/modules/providers/shared/mcp/mcp.provider.js';
-import { AppError, readObjectRecord, readOptionalString, readStringArray, readStringRecord, } from '@/shared/utils.js';
+import { McpProvider } from '../../shared/mcp/mcp.provider.js';
+import { AppError, readObjectRecord, readOptionalString, readStringArray, readStringRecord, } from '../../../../shared/utils.js';
 const readTomlConfig = async (filePath) => {
     try {
         const content = await readFile(filePath, 'utf8');

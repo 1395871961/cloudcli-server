@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { AppError } from '@/shared/utils.js';
+import { AppError } from '../../../../shared/utils.js';
 const resolveWorkspacePath = (workspacePath) => path.resolve(workspacePath ?? process.cwd());
 const normalizeServerName = (name) => {
     const normalized = name.trim();

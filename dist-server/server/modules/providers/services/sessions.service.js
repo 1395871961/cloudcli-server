@@ -1,4 +1,4 @@
-import { providerRegistry } from '@/modules/providers/provider.registry.js';
+import { providerRegistry } from '../provider.registry.js';
 /**
  * Application service for provider-backed session message operations.
  *

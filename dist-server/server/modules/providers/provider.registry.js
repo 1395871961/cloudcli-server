@@ -1,8 +1,8 @@
-import { ClaudeProvider } from '@/modules/providers/list/claude/claude.provider.js';
-import { CodexProvider } from '@/modules/providers/list/codex/codex.provider.js';
-import { CursorProvider } from '@/modules/providers/list/cursor/cursor.provider.js';
-import { GeminiProvider } from '@/modules/providers/list/gemini/gemini.provider.js';
-import { AppError } from '@/shared/utils.js';
+import { ClaudeProvider } from './list/claude/claude.provider.js';
+import { CodexProvider } from './list/codex/codex.provider.js';
+import { CursorProvider } from './list/cursor/cursor.provider.js';
+import { GeminiProvider } from './list/gemini/gemini.provider.js';
+import { AppError } from '../../shared/utils.js';
 const providers = {
     claude: new ClaudeProvider(),
     codex: new CodexProvider(),

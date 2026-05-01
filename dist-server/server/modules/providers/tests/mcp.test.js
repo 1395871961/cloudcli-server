@@ -4,8 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import TOML from '@iarna/toml';
-import { providerMcpService } from '@/modules/providers/services/mcp.service.js';
-import { AppError } from '@/shared/utils.js';
+import { providerMcpService } from '../services/mcp.service.js';
+import { AppError } from '../../../shared/utils.js';
 const patchHomeDir = (nextHomeDir) => {
     const original = os.homedir;
     os.homedir = () => nextHomeDir;

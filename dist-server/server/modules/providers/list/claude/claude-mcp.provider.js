@@ -1,7 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
-import { McpProvider } from '@/modules/providers/shared/mcp/mcp.provider.js';
-import { AppError, readJsonConfig, readObjectRecord, readOptionalString, readStringArray, readStringRecord, writeJsonConfig, } from '@/shared/utils.js';
+import { McpProvider } from '../../shared/mcp/mcp.provider.js';
+import { AppError, readJsonConfig, readObjectRecord, readOptionalString, readStringArray, readStringRecord, writeJsonConfig, } from '../../../../shared/utils.js';
 export class ClaudeMcpProvider extends McpProvider {
     constructor() {
         super('claude', ['user', 'local', 'project'], ['stdio', 'http', 'sse']);

@@ -1,5 +1,5 @@
-import { getSessionMessages } from '@/projects.js';
-import { createNormalizedMessage, generateMessageId, readObjectRecord } from '@/shared/utils.js';
+import { getSessionMessages } from '../../../../projects.js';
+import { createNormalizedMessage, generateMessageId, readObjectRecord } from '../../../../shared/utils.js';
 const PROVIDER = 'claude';
 const loadClaudeSessionMessages = getSessionMessages;
 /**

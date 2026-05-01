@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
-import { createNormalizedMessage, generateMessageId, readObjectRecord } from '@/shared/utils.js';
+import { createNormalizedMessage, generateMessageId, readObjectRecord } from '../../../../shared/utils.js';
 const PROVIDER = 'cursor';
 function sanitizeCursorSessionId(sessionId) {
     const normalized = sessionId.trim();

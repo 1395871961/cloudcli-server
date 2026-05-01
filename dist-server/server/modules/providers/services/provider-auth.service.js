@@ -1,4 +1,4 @@
-import { providerRegistry } from '@/modules/providers/provider.registry.js';
+import { providerRegistry } from '../provider.registry.js';
 export const providerAuthService = {
     /**
      * Resolves a provider and returns its installation/authentication status.

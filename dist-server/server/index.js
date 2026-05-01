@@ -4,7 +4,7 @@ import './load-env.js';
 import fs from 'fs';
 import path from 'path';
 import { findAppRoot, getModuleDir } from './utils/runtime-paths.js';
-import { AppError, createNormalizedMessage } from '@/shared/utils.js';
+import { AppError, createNormalizedMessage } from './shared/utils.js';
 const __dirname = getModuleDir(import.meta.url);
 // The server source runs from /server, while the compiled output runs from /dist-server/server.
 // Resolving the app root once keeps every repo-level lookup below aligned across both layouts.

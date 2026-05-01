@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import spawn from 'cross-spawn';
-import { readObjectRecord, readOptionalString } from '@/shared/utils.js';
+import { readObjectRecord, readOptionalString } from '../../../../shared/utils.js';
 export class ClaudeProviderAuth {
     /**
      * Checks whether the Claude Code CLI is available on this host.

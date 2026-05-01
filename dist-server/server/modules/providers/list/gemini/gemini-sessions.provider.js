@@ -1,6 +1,6 @@
-import sessionManager from '@/sessionManager.js';
-import { getGeminiCliSessionMessages } from '@/projects.js';
-import { createNormalizedMessage, generateMessageId, readObjectRecord } from '@/shared/utils.js';
+import sessionManager from '../../../../sessionManager.js';
+import { getGeminiCliSessionMessages } from '../../../../projects.js';
+import { createNormalizedMessage, generateMessageId, readObjectRecord } from '../../../../shared/utils.js';
 const PROVIDER = 'gemini';
 export class GeminiSessionsProvider {
     /**

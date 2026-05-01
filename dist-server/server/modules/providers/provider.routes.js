@@ -1,7 +1,7 @@
 import express from 'express';
-import { providerAuthService } from '@/modules/providers/services/provider-auth.service.js';
-import { providerMcpService } from '@/modules/providers/services/mcp.service.js';
-import { AppError, asyncHandler, createApiSuccessResponse } from '@/shared/utils.js';
+import { providerAuthService } from './services/provider-auth.service.js';
+import { providerMcpService } from './services/mcp.service.js';
+import { AppError, asyncHandler, createApiSuccessResponse } from '../../shared/utils.js';
 const router = express.Router();
 const readPathParam = (value, name) => {
     if (typeof value === 'string') {

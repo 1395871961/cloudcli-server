@@ -1,5 +1,5 @@
-import { getCodexSessionMessages } from '@/projects.js';
-import { createNormalizedMessage, generateMessageId, readObjectRecord } from '@/shared/utils.js';
+import { getCodexSessionMessages } from '../../../../projects.js';
+import { createNormalizedMessage, generateMessageId, readObjectRecord } from '../../../../shared/utils.js';
 const PROVIDER = 'codex';
 const loadCodexSessionMessages = getCodexSessionMessages;
 export class CodexSessionsProvider {
