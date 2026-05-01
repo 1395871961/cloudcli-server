@@ -136,7 +136,25 @@ input::placeholder { color: var(--text2); }
     <div id="devices-list" class="devices-list">
       <div class="loading-row"><div class="spinner"></div>正在加载设备…</div>
     </div>
-    <button class="btn btn-ghost" onclick="loadDevices()">↺ 刷新</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="loadDevices()">↺ 刷新</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="toggleManual()">⌨ 手动输入</button>
+    </div>
+    <!-- Manual device ID input -->
+    <div id="manual-connect" style="display:none" class="card">
+      <div class="form-row">
+        <div class="form-group">
+          <label>设备 ID</label>
+          <input id="manual-device-id" type="text" placeholder="粘贴设备 ID（在桌面端设置→设备中查看）" autocapitalize="none" autocorrect="off" spellcheck="false">
+        </div>
+        <div class="form-group">
+          <label>设备名称（可选）</label>
+          <input id="manual-device-name" type="text" placeholder="My PC">
+        </div>
+        <div id="manual-error" class="error-box" style="display:none"></div>
+        <button class="btn btn-primary" onclick="connectManual()">直接连接</button>
+      </div>
+    </div>
   </div>
 
   <!-- Screen: Connecting -->
@@ -253,7 +271,8 @@ async function loadDevices() {
     const data = await res.json();
     const devices = data.devices || [];
     if (!devices.length) {
-      container.innerHTML = '<div style="text-align:center;color:var(--text2);padding:24px 0;font-size:14px">没有找到设备<br><small>请先在 Electron 桌面端登录并启用在线模式</small></div>';
+      container.innerHTML = '<div style="text-align:center;color:var(--text2);padding:24px 0;font-size:14px">暂无在线设备<br><small>可使用下方「手动输入」直接连接</small></div>';
+      document.getElementById('manual-connect').style.display = '';
       return;
     }
     container.innerHTML = '';
@@ -286,6 +305,21 @@ function timeAgo(ts) {
   if (diff < 3600) return Math.floor(diff / 60) + ' 分钟前';
   if (diff < 86400) return Math.floor(diff / 3600) + ' 小时前';
   return Math.floor(diff / 86400) + ' 天前';
+}
+
+// ─── Manual connect ───────────────────────────────────────────────────────────
+function toggleManual() {
+  const el = document.getElementById('manual-connect');
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+async function connectManual() {
+  const deviceId = document.getElementById('manual-device-id').value.trim();
+  const deviceName = document.getElementById('manual-device-name').value.trim() || deviceId.slice(0, 8);
+  showError('manual-error', '');
+  if (!deviceId) { showError('manual-error', '请输入设备 ID'); return; }
+  const fakeDevice = { id: deviceId, name: deviceName, platform: 'unknown', is_online: 1 };
+  await connectDevice(fakeDevice);
 }
 
 // ─── WebRTC ───────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import { Smartphone, Monitor, Trash2, RefreshCw, Copy, Check, Wifi, WifiOff, Plu
 declare global {
   interface Window {
     electronAPI?: {
-      getConfig: () => Promise<{ serverUrl: string; deviceName: string; autoStart: boolean; signalingToken?: string; connectionMode?: string }>;
+      getConfig: () => Promise<{ serverUrl: string; deviceName: string; deviceId?: string; autoStart: boolean; signalingToken?: string; connectionMode?: string }};
       setConfig: (data: Record<string, unknown>) => Promise<boolean>;
       getDeviceStatus: () => Promise<string>;
       onStatusChange: (cb: (s: string) => void) => () => void;
@@ -44,6 +44,8 @@ export default function DevicesTab() {
   const [signalingStatus, setSignalingStatus] = useState<string>('disconnected');
   const [serverUrl, setServerUrl] = useState('');
   const [deviceName, setDeviceName] = useState('');
+  const [deviceId, setDeviceId] = useState('');
+  const [copiedId, setCopiedId] = useState(false);
   // Signaling server login
   const [signalingUsername, setSignalingUsername] = useState('');
   const [signalingPassword, setSignalingPassword] = useState('');
@@ -80,6 +82,7 @@ export default function DevicesTab() {
     window.electronAPI.getConfig().then((cfg) => {
       setServerUrl(cfg.serverUrl ?? '');
       setDeviceName(cfg.deviceName ?? '');
+      setDeviceId(cfg.deviceId ?? '');
       setHasSignalingToken(Boolean(cfg.signalingToken));
     });
     window.electronAPI.getDeviceStatus().then(setSignalingStatus);
@@ -257,6 +260,21 @@ export default function DevicesTab() {
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
               </div>
+              {deviceId && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground">设备 ID <span className="text-muted-foreground font-normal">（手机手动连接时使用）</span></label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 rounded-md border border-border bg-muted px-3 py-2 text-xs font-mono text-muted-foreground select-all truncate">{deviceId}</code>
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(deviceId); setCopiedId(true); setTimeout(() => setCopiedId(false), 2000); }}
+                      className="shrink-0 rounded-md border border-border px-2 py-2 text-xs hover:bg-accent transition-colors"
+                    >
+                      {copiedId ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
