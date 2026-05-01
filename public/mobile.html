@@ -198,6 +198,7 @@ let pendingRequests = {};
 let selectedDevice = null;
 let swReady = false;
 let bcChannel = null;  // BroadcastChannel with service worker
+let pollTimer = null;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function show(id) {
@@ -207,6 +208,12 @@ function show(id) {
   el.classList.remove('fade');
   void el.offsetHeight;
   el.classList.add('fade');
+  // Auto-poll only on devices screen
+  if (id === 'devices') {
+    if (!pollTimer) pollTimer = setInterval(() => loadDevices(true), 10000);
+  } else {
+    clearInterval(pollTimer); pollTimer = null;
+  }
 }
 
 function showError(elId, msg) {
@@ -258,13 +265,14 @@ document.getElementById('password').addEventListener('keydown', e => {
 
 function logout() {
   TOKEN = ''; localStorage.removeItem('mobile-token');
+  clearInterval(pollTimer); pollTimer = null;
   cleanup(); show('login');
 }
 
 // ─── Devices ─────────────────────────────────────────────────────────────────
-async function loadDevices() {
+async function loadDevices(silent = false) {
   const container = document.getElementById('devices-list');
-  container.innerHTML = '<div class="loading-row"><div class="spinner"></div>加载设备中…</div>';
+  if (!silent) container.innerHTML = '<div class="loading-row"><div class="spinner"></div>加载设备中…</div>';
   try {
     const res = await fetch('/api/devices', { headers: { Authorization: 'Bearer ' + TOKEN } });
     if (res.status === 401) { logout(); return; }
