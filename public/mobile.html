@@ -235,19 +235,17 @@ async function doLogin() {
   btn.disabled = true; btn.textContent = '登录中…';
   showError('login-error', '');
   try {
-    let res = await fetch('/api/auth/login', {
+    const res = await fetch('/api/auth/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     });
-    // Auto-register if account doesn't exist on Render (DB can reset on redeploy)
-    if (res.status === 401 || res.status === 400) {
-      res = await fetch('/api/auth/register', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-    }
     const data = await res.json();
-    if (!res.ok) { showError('login-error', data.error || '登录失败'); return; }
+    if (!res.ok) {
+      const msg = res.status === 401
+        ? '用户名或密码错误，请先在桌面端登录以初始化账号'
+        : (data.error || '登录失败');
+      showError('login-error', msg); return;
+    }
     TOKEN = data.token;
     localStorage.setItem('mobile-token', TOKEN);
     show('devices');
