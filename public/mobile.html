@@ -514,16 +514,24 @@ function p2pFetch(method, path, body) {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
-// Support ?connect=deviceId or #connect=deviceId from PHP mobile.html redirect
+// Support ?renderToken + ?connect (or #connect) from PHP mobile.html redirect
 (function initAutoConnect() {
+  const qp = new URLSearchParams(location.search);
   const hash = location.hash.replace('#', '');
-  const params = new URLSearchParams(hash.includes('=') ? hash : '');
-  const autoDeviceId = params.get('connect') || new URLSearchParams(location.search).get('connect');
-  if (autoDeviceId) {
-    window._autoConnect = autoDeviceId;
-    // Clear hash so refresh doesn't re-trigger
-    history.replaceState(null, '', location.pathname);
+  const hp = new URLSearchParams(hash.includes('=') ? hash : '');
+
+  // Pre-auth token from PHP SSO redirect
+  const preToken = qp.get('renderToken');
+  if (preToken) {
+    TOKEN = preToken;
+    localStorage.setItem('mobile-token', TOKEN);
   }
+
+  const autoDeviceId = qp.get('connect') || hp.get('connect');
+  if (autoDeviceId) window._autoConnect = autoDeviceId;
+
+  // Clean URL
+  if (preToken || autoDeviceId) history.replaceState(null, '', location.pathname);
 })();
 
 async function maybeAutoConnect() {
