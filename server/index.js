@@ -2223,9 +2223,14 @@ app.get('*', (req, res) => {
         res.setHeader('Expires', '0');
         res.sendFile(indexPath);
     } else {
-        // In development, redirect to Vite dev server only if dist doesn't exist
-        const redirectHost = getConnectableHost(req.hostname);
-        res.redirect(`${req.protocol}://${redirectHost}:${VITE_PORT}`);
+        // No dist/ built yet — redirect to Vite on localhost, 404 on Render
+        const host = req.hostname || '';
+        if (host === 'localhost' || host === '127.0.0.1') {
+            const redirectHost = getConnectableHost(req.hostname);
+            res.redirect(`${req.protocol}://${redirectHost}:${VITE_PORT}`);
+        } else {
+            res.status(404).send('Not found');
+        }
     }
 });
 

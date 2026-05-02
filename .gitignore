@@ -10,9 +10,10 @@ lerna-debug.log*
 build/
 out/
 
-# Desktop-only code — not needed on Render server (dist/ is pre-built and committed)
+# Desktop-only code — not needed on Render server (SPA loaded via P2P from desktop)
 electron/
 src/
+dist/
 
 # Environment variables
 .env

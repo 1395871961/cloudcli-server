@@ -450,19 +450,18 @@ function setupBroadcastBridge() {
   bcChannel = new BroadcastChannel('cloudcli-p2p-proxy');
   bcChannel.addEventListener('message', async (ev) => {
     if (ev.data.type !== 'p2p-request') return;
-    const { id, method, path, body } = ev.data;
+    const { id, method, path, headers, body } = ev.data;
     const requestId = uuid();
-    const bodyB64 = body ? btoa(unescape(encodeURIComponent(body))) : null;
-    // Route through P2P data channel
+    // Route through P2P data channel, forwarding original headers
     const result = await new Promise((resolve) => {
       pendingRequests[requestId] = resolve;
       dcSend({ type: 'http-request', requestId, port: 3001, method, path,
-        headers: { 'Content-Type': 'application/json' }, body: bodyB64 });
+        headers: headers || {}, body: body || null });
       setTimeout(() => {
-        if (pendingRequests[requestId]) { delete pendingRequests[requestId]; resolve({ status: 504, body: btoa('{"error":"timeout"}') }); }
+        if (pendingRequests[requestId]) { delete pendingRequests[requestId]; resolve({ status: 504, headers: {}, body: btoa('{"error":"timeout"}') }); }
       }, 18000);
     });
-    bcChannel.postMessage({ type: 'p2p-response', id, status: result.status, headers: result.headers, body: result.body });
+    bcChannel.postMessage({ type: 'p2p-response', id, status: result.status, headers: result.headers || {}, body: result.body });
   });
 }
 

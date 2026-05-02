@@ -19,10 +19,19 @@ bc.addEventListener('message', (ev) => {
     const p = pendingP2P.get(ev.data.id);
     if (p) {
       pendingP2P.delete(ev.data.id);
-      const bodyText = ev.data.body ? atob(ev.data.body) : '';
-      p.resolve(new Response(bodyText, {
+      // Build headers, strip hop-by-hop headers that break Response construction
+      const safeHeaders = {};
+      const skip = new Set(['transfer-encoding', 'connection', 'keep-alive', 'trailer', 'upgrade']);
+      Object.entries(ev.data.headers || {}).forEach(([k, v]) => {
+        if (!skip.has(k.toLowerCase())) safeHeaders[k] = Array.isArray(v) ? v[0] : v;
+      });
+      // Body is base64-encoded binary
+      const bodyBytes = ev.data.body
+        ? Uint8Array.from(atob(ev.data.body), c => c.charCodeAt(0))
+        : new Uint8Array(0);
+      p.resolve(new Response(bodyBytes, {
         status: ev.data.status || 200,
-        headers: new Headers({ 'Content-Type': 'application/json', ...(ev.data.headers || {}) })
+        headers: new Headers(safeHeaders)
       }));
     }
   }
@@ -37,12 +46,18 @@ function p2pRequest(request, url) {
   const id = crypto.randomUUID();
   return new Promise((resolve) => {
     pendingP2P.set(id, { resolve });
-    request.text().then(body => {
+    const reqHeaders = {};
+    request.headers.forEach((v, k) => { reqHeaders[k] = v; });
+    request.arrayBuffer().then(buf => {
+      const bodyB64 = buf.byteLength > 0
+        ? btoa(String.fromCharCode(...new Uint8Array(buf)))
+        : null;
       bc.postMessage({
         type: 'p2p-request', id,
         method: request.method,
         path: url.pathname + url.search,
-        body: body || null,
+        headers: reqHeaders,
+        body: bodyB64,
       });
     });
     setTimeout(() => {
@@ -69,25 +84,26 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   const href = event.request.url;
 
-  // Route /api/* through P2P when connected
-  if (url.pathname.startsWith('/api/') && p2pActive) {
+  // Never intercept WebSocket upgrades or SW/manifest files
+  if (href.includes('/ws') || url.pathname === '/sw.js' || url.pathname === '/manifest.json') {
+    return;
+  }
+
+  // When P2P is active, route ALL requests through P2P (HTML, JS, CSS, API)
+  // This allows Render to serve only mobile.html — full SPA comes from desktop
+  if (p2pActive) {
     event.respondWith(p2pRequest(event.request, url));
     return;
   }
 
-  // Never intercept WebSocket upgrades or non-P2P API requests
-  if (href.includes('/api/') || href.includes('/ws')) {
-    return;
-  }
-
-  // Navigation requests (HTML) — always go to network, no caching
+  // No P2P: navigation requests go to network
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/manifest.json').then(() =>
+      fetch(event.request).catch(() =>
         new Response('<h1>Offline</h1><p>Please check your connection.</p>', {
           headers: { 'Content-Type': 'text/html' }
         })
-      ))
+      )
     );
     return;
   }
