@@ -194,6 +194,7 @@ const PHP_API = 'https://mzycai.eu.cc';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let TOKEN = localStorage.getItem('mobile-token') || '';
+let SIGNAL_TOKEN = localStorage.getItem('mobile-signal-token') || '';
 let ws = null;
 let pc = null;
 let dc = null;
@@ -248,6 +249,10 @@ async function doLogin() {
     }
     TOKEN = data.token;
     localStorage.setItem('mobile-token', TOKEN);
+    if (data.signal_token) {
+      SIGNAL_TOKEN = data.signal_token;
+      localStorage.setItem('mobile-signal-token', SIGNAL_TOKEN);
+    }
     show('devices');
     await loadDevices();
     maybeAutoConnect();
@@ -264,6 +269,7 @@ document.getElementById('password').addEventListener('keydown', e => {
 
 function logout() {
   TOKEN = ''; localStorage.removeItem('mobile-token');
+  SIGNAL_TOKEN = ''; localStorage.removeItem('mobile-signal-token');
   clearInterval(pollTimer); pollTimer = null;
   cleanup(); show('login');
 }
@@ -375,8 +381,11 @@ function cleanup() {
 function disconnect() { cleanup(); show('devices'); loadDevices(); }
 
 async function doWebRTC(device) {
-  // Render WebSocket — PLATFORM=true so any token is accepted
-  ws = new WebSocket('wss://cloudcli-server.onrender.com/ws/signal?token=platform');
+  // Render WebSocket — authenticate via PHP signal token
+  const wsParam = SIGNAL_TOKEN
+    ? `signalToken=${encodeURIComponent(SIGNAL_TOKEN)}`
+    : `token=${encodeURIComponent(TOKEN)}`;
+  ws = new WebSocket(`wss://cloudcli-server.onrender.com/ws/signal?${wsParam}`);
 
   await new Promise((resolve, reject) => {
     ws.onopen = resolve;

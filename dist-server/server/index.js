@@ -188,34 +188,44 @@ import { stripAnsiSequences, normalizeDetectedUrl, extractUrlsFromText, shouldAu
 // Single WebSocket server that handles both paths
 const wss = new WebSocketServer({
     server,
-    verifyClient: (info) => {
-        console.log('WebSocket connection attempt to:', info.req.url);
-        // Platform mode: always allow connection
-        if (IS_PLATFORM) {
-            const user = authenticateWebSocket(null); // Will return first user
-            if (!user) {
-                console.log('[WARN] Platform mode: No user found in database');
-                return false;
-            }
-            info.req.user = user;
-            console.log('[OK] Platform mode WebSocket authenticated for user:', user.username);
-            return true;
-        }
-        // Normal mode: verify token
-        // Extract token from query parameters or headers
-        const url = new URL(info.req.url, 'http://localhost');
-        const token = url.searchParams.get('token') ||
+    verifyClient: (info, cb) => {
+        const reqUrl = new URL(info.req.url, 'http://localhost');
+        const path = reqUrl.pathname;
+        const token = reqUrl.searchParams.get('token') ||
             info.req.headers.authorization?.split(' ')[1];
-        // Verify token
-        const user = authenticateWebSocket(token);
-        if (!user) {
-            console.log('[WARN] WebSocket authentication failed');
-            return false;
+        const signalToken = reqUrl.searchParams.get('signalToken');
+        console.log('WebSocket connection attempt to:', info.req.url);
+        // /ws/signal with PHP signal token — async PHP callback validation
+        if (path === '/ws/signal' && signalToken) {
+            const phpUrl = `https://mzycai.eu.cc/api/auth.php?action=verify-signal&token=${encodeURIComponent(signalToken)}`;
+            fetch(phpUrl)
+                .then(r => { if (!r.ok) throw new Error(`PHP returned ${r.status}`); return r.json(); })
+                .then(user => {
+                    info.req.user = { userId: user.id, username: user.username };
+                    console.log('[OK] PHP signal token auth for user:', user.username);
+                    cb(true);
+                })
+                .catch(err => {
+                    console.log('[WARN] PHP signal token validation failed:', err.message);
+                    cb(false, 401, 'Unauthorized');
+                });
+            return; // async — cb will be called later
         }
-        // Store user info in the request for later use
+        // Platform mode: bypass JWT (for /ws/device Electron connections in platform mode)
+        if (IS_PLATFORM) {
+            const user = authenticateWebSocket(null);
+            if (!user) { console.log('[WARN] Platform mode: No user found'); cb(false, 401, 'No user'); return; }
+            info.req.user = user;
+            console.log('[OK] Platform mode WebSocket auth for user:', user.username);
+            cb(true);
+            return;
+        }
+        // Normal Render JWT auth (Electron /ws/device and legacy mobile)
+        const user = authenticateWebSocket(token);
+        if (!user) { console.log('[WARN] WebSocket authentication failed'); cb(false, 401, 'Unauthorized'); return; }
         info.req.user = user;
-        console.log('[OK] WebSocket authenticated for user:', user.username);
-        return true;
+        console.log('[OK] WebSocket JWT auth for user:', user.username);
+        cb(true);
     }
 });
 // Make WebSocket server available to routes
