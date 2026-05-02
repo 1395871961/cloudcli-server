@@ -53,23 +53,12 @@ export function handleDeviceConnection(ws, request) {
             deviceId = msg.device_id;
             const name = msg.device_name || 'Unknown Device';
             const platform = msg.platform || 'unknown';
-            if (!user?.id) {
-                console.error('[Signal] Cannot register device: user.id is null');
-                ws.close(4003, 'Authentication error');
-                return;
-            }
-            try {
-                deviceDb.upsert(deviceId, user.id, name, platform);
-                if (deviceSockets)
-                    deviceSockets.set(deviceId, ws);
-                console.log(`[Signal] Device registered: ${deviceId} (${name}) user=${user.id}`);
-                ws.send(JSON.stringify({ type: 'registered', device_id: deviceId }));
-                resetPongTimer();
-            }
-            catch (err) {
-                console.error('[Signal] Device register DB error:', err.message);
-                ws.close(4004, 'Server error');
-            }
+            deviceDb.upsert(deviceId, user.id, name, platform);
+            if (deviceSockets)
+                deviceSockets.set(deviceId, ws);
+            console.log(`[Signal] Device registered: ${deviceId} (${name}) user=${user.id}`);
+            ws.send(JSON.stringify({ type: 'registered', device_id: deviceId }));
+            resetPongTimer();
             return;
         }
         // Forward signaling messages to the target mobile client
@@ -119,8 +108,7 @@ export function handleSignalConnection(ws, request) {
         }
         if (msg.type === 'connect') {
             targetDeviceId = msg.device_id;
-            // Verify device exists (ownership not checked — cross-account access is intentional
-            // since Render's ephemeral DB may assign different user_ids across restarts)
+            // Find device by id only — skip user_id check (Render DB resets cause mismatches)
             const device = deviceDb.getById(targetDeviceId);
             if (!device) {
                 ws.send(JSON.stringify({ type: 'error', message: 'Device not found' }));
