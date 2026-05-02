@@ -277,6 +277,7 @@ async function loadDevices(silent = false) {
     if (res.status === 401) { logout(); return; }
     const data = await res.json();
     const devices = data.devices || [];
+    window._deviceList = devices; // cache for maybeAutoConnect
     if (!devices.length) {
       container.innerHTML = '<div style="text-align:center;color:var(--text2);padding:24px 0;font-size:14px">暂无在线设备<br><small>可使用下方「手动输入」直接连接</small></div>';
       document.getElementById('manual-connect').style.display = '';
@@ -529,16 +530,12 @@ async function maybeAutoConnect() {
   if (!window._autoConnect) return;
   const deviceId = window._autoConnect;
   window._autoConnect = null;
-  // Wait for device list to render, then find and click the device
-  await new Promise(r => setTimeout(r, 400));
-  const devices = document.querySelectorAll('.device-item:not(.offline)');
-  for (const el of devices) {
-    const nameEl = el.querySelector('.device-name');
-    if (nameEl && nameEl.textContent.includes(deviceId.slice(0, 8))) {
-      el.click(); return;
-    }
-  }
-  // Fallback: try fake device by id
+  // Match by device_id field (exact), then by name prefix, then fallback
+  const list = window._deviceList || [];
+  const match = list.find(d => d.device_id === deviceId && d.is_online == 1)
+             || list.find(d => (d.device_id || '').startsWith(deviceId.slice(0, 8)) && d.is_online == 1);
+  if (match) { connectDevice(match); return; }
+  // Fallback: force-connect using device_id directly (desktop must be on Render WS)
   connectDevice({ id: deviceId, name: deviceId, platform: 'unknown', is_online: 1 });
 }
 
