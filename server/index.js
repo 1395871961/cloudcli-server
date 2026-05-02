@@ -337,6 +337,21 @@ app.use('/api/remote', remoteRoutes);
 // Serve public files (like api-docs.html)
 app.use(express.static(path.join(APP_ROOT, 'public')));
 
+// On Render (non-localhost), redirect root / to /mobile so phones land on pairing page
+app.get('/', (req, res, next) => {
+    const host = req.hostname || '';
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+        return res.redirect(302, '/mobile');
+    }
+    next();
+});
+
+// Mobile pairing page — served at /mobile so root / still serves the React SPA locally
+app.get('/mobile', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.sendFile(path.join(APP_ROOT, 'public', 'mobile.html'));
+});
+
 // Static files served after API routes
 // Add cache control: HTML files should not be cached, but assets can be cached
 app.use(express.static(path.join(APP_ROOT, 'dist'), {
@@ -2208,9 +2223,14 @@ app.get('*', (req, res) => {
         res.setHeader('Expires', '0');
         res.sendFile(indexPath);
     } else {
-        // In development, redirect to Vite dev server only if dist doesn't exist
-        const redirectHost = getConnectableHost(req.hostname);
-        res.redirect(`${req.protocol}://${redirectHost}:${VITE_PORT}`);
+        // No dist/ built — redirect to Vite on localhost, 404 on Render
+        const host = req.hostname || '';
+        if (host === 'localhost' || host === '127.0.0.1') {
+            const redirectHost = getConnectableHost(req.hostname);
+            res.redirect(`${req.protocol}://${redirectHost}:${VITE_PORT}`);
+        } else {
+            res.status(404).send('Not found');
+        }
     }
 });
 
