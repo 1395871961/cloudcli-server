@@ -134,23 +134,56 @@ src/
 
 ```
 [手机浏览器]
-    │  打开 cloudcli-server.onrender.com
-    │  → 重定向到 /mobile
-    │  → 登录（与桌面端相同账密）
-    │  → 看到设备列表
-    │  → 点击连接 → WebRTC P2P
+    │  1. 访问 mzycai.eu.cc（PHP 主机，产品主页）
+    │  2. 点击「手机配对」→ mzycai.eu.cc/mobile.html
+    │  3. 登录/注册（PHP MySQL，持久化）
+    │  4. 查看在线设备列表
+    │  5. 点击设备 → 跳转至 Render 完成 WebRTC 握手
+    │  6. P2P 直连建立
     │
-[Render 服务器]  cloudcli-server.onrender.com
-    ├── 提供 /mobile 配对页（public/mobile.html）
-    ├── /api/auth  账号登录（SQLite，每次部署重置）
-    ├── /api/devices  设备列表
-    └── /ws/device  WebRTC 信令（设备注册/配对）
+[PHP 主机]  mzycai.eu.cc
+    ├── index.html         产品主页
+    ├── mobile.html        登录/注册/设备列表页
+    └── api/
+        ├── auth.php       注册/登录（MySQL，持久化）
+        ├── devices.php    设备注册/列表/心跳
+        ├── signal.php     WebRTC 信令消息（Upstash Redis）
+        ├── config.php     MySQL + JWT + Redis 配置
+        ├── redis.php      Upstash Redis REST API 封装
+        ├── jwt.php        JWT 签发/验证
+        ├── db.php         PDO MySQL 连接 + 建表
+        └── cors.php       CORS 头 + JSON 输出工具
+    │
+[Render 服务器]  cloudcli-server.onrender.com  (免费，每次部署重置 SQLite)
+    ├── /mobile            配对页（public/mobile.html，HTTPS，支持 WebRTC）
+    ├── /api/auth          账号登录（SQLite，临时）
+    ├── /api/devices       设备列表（SQLite，临时）
+    └── /ws/device         WebRTC 信令 WebSocket（设备注册/配对）
     │
 [桌面端 Electron]  localhost:3001
     ├── 运行 React SPA（dist/index.html）
-    ├── 注册到 Render 信令服务器
+    ├── 注册到 Render 信令服务器（WebSocket）
     └── P2P 连接后，SW 代理手机端所有请求到本地
 ```
+
+> **注意**：PHP 主机目前为 HTTP，WebRTC 需要 HTTPS 安全上下文。  
+> 开启 SSL 后，mobile.html 可直接做 WebRTC，无需跳转 Render。
+
+---
+
+## PHP 后端 API 端点
+
+| 端点 | 方法 | 说明 |
+|---|---|---|
+| `/api/auth.php?action=register` | POST | 注册（用户名/密码，返回 JWT）|
+| `/api/auth.php?action=login` | POST | 登录（返回 JWT）|
+| `/api/auth.php?action=me` | GET | 获取当前用户信息（需 JWT）|
+| `/api/devices.php` | GET | 列出所有设备+在线状态（需 JWT）|
+| `/api/devices.php` | POST | 注册/心跳设备（需 JWT）|
+| `/api/devices.php?deviceId=xxx` | DELETE | 删除设备（需 JWT）|
+| `/api/signal.php?action=send` | POST | 发送信令消息到目标设备（需 JWT）|
+| `/api/signal.php?action=poll&deviceId=xxx` | GET | 取出本设备收件箱消息（需 JWT）|
+| `/api/signal.php?action=heartbeat` | POST | 桌面端保持在线（每30s，需 JWT）|
 
 ---
 
@@ -158,7 +191,9 @@ src/
 
 | 场景 | 流程 |
 |---|---|
-| 手机配对 | 手机登录 → 获取 JWT → 拉取设备列表 → WebRTC Offer/Answer → P2P 建立 |
+| 手机配对（当前）| PHP 登录 → 设备列表 → 跳 Render → Render WebSocket 信令 → WebRTC P2P |
+| 手机配对（SSL 后）| PHP 登录 → 设备列表 → PHP signal API → WebRTC P2P（无需 Render）|
 | P2P 代理 | 手机 SW 拦截请求 → BroadcastChannel → mobile.html → WebRTC DataChannel → 桌面端 → 本地 HTTP → 响应原路返回 |
-| 认证 | bcrypt hash 存 SQLite `users.password_hash`，JWT 有效期验证 |
-| 信令 token | 桌面端登录时请求 Render `/api/auth/login` 获取 JWT，存入 electron-store `signalingToken` |
+| PHP 认证 | bcrypt 存 MySQL `users.password_hash`，JWT HS256 签发，有效期 30 天 |
+| 信令消息 | 存入 Upstash Redis 列表（120s TTL），LPUSH 入队，RPOP 出队 |
+| 设备在线 | Redis key `device:{id}:online` 60s TTL，桌面端每 30s 心跳续期 |
