@@ -124,7 +124,7 @@ input::placeholder { color: var(--text2); }
         <button class="btn btn-primary" id="btn-login" onclick="doLogin()">登录</button>
       </div>
     </div>
-    <p style="text-align:center;font-size:12px;color:var(--text2)">使用与 Electron 桌面端相同的账号登录</p>
+    <p style="text-align:center;font-size:12px;color:var(--text2)">使用 CloudCLI 账号登录（注册地址：mzycai.eu.cc/mobile.html）</p>
   </div>
 
   <!-- Screen: Device List -->
@@ -189,6 +189,9 @@ input::placeholder { color: var(--text2); }
 <script>
 'use strict';
 
+// ─── Config ──────────────────────────────────────────────────────────────────
+const PHP_API = 'https://mzycai.eu.cc';
+
 // ─── State ────────────────────────────────────────────────────────────────────
 let TOKEN = localStorage.getItem('mobile-token') || '';
 let ws = null;
@@ -235,16 +238,13 @@ async function doLogin() {
   btn.disabled = true; btn.textContent = '登录中…';
   showError('login-error', '');
   try {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(`${PHP_API}/api/auth.php?action=login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     });
     const data = await res.json();
     if (!res.ok) {
-      const msg = res.status === 401
-        ? '用户名或密码错误，请先在桌面端登录以初始化账号'
-        : (data.error || '登录失败');
-      showError('login-error', msg); return;
+      showError('login-error', data.error || '用户名或密码错误'); return;
     }
     TOKEN = data.token;
     localStorage.setItem('mobile-token', TOKEN);
@@ -268,16 +268,30 @@ function logout() {
   cleanup(); show('login');
 }
 
+// ─── Register ─────────────────────────────────────────────────────────────────
+async function doRegister(username, password) {
+  const res = await fetch(`${PHP_API}/api/auth.php?action=register`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  return res.json();
+}
+
 // ─── Devices ─────────────────────────────────────────────────────────────────
 async function loadDevices(silent = false) {
   const container = document.getElementById('devices-list');
   if (!silent) container.innerHTML = '<div class="loading-row"><div class="spinner"></div>加载设备中…</div>';
   try {
-    const res = await fetch('/api/devices', { headers: { Authorization: 'Bearer ' + TOKEN } });
+    const res = await fetch(`${PHP_API}/api/devices.php`, { headers: { Authorization: 'Bearer ' + TOKEN } });
     if (res.status === 401) { logout(); return; }
-    const data = await res.json();
-    const devices = data.devices || [];
-    window._deviceList = devices; // cache for maybeAutoConnect
+    // PHP returns a plain array; normalise to the shape the rest of the code expects
+    const raw = await res.json();
+    const devices = (Array.isArray(raw) ? raw : (raw.devices || [])).map(d => ({
+      ...d,
+      id: d.device_id ?? d.id,       // WebRTC uses device.id to connect
+      is_online: d.online === true ? 1 : (d.is_online ?? 0),
+    }));
+    window._deviceList = devices;
     if (!devices.length) {
       container.innerHTML = '<div style="text-align:center;color:var(--text2);padding:24px 0;font-size:14px">暂无在线设备<br><small>可使用下方「手动输入」直接连接</small></div>';
       document.getElementById('manual-connect').style.display = '';
@@ -361,8 +375,8 @@ function cleanup() {
 function disconnect() { cleanup(); show('devices'); loadDevices(); }
 
 async function doWebRTC(device) {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${proto}//${location.host}/ws/signal?token=${TOKEN}`);
+  // Render WebSocket — PLATFORM=true so any token is accepted
+  ws = new WebSocket('wss://cloudcli-server.onrender.com/ws/signal?token=platform');
 
   await new Promise((resolve, reject) => {
     ws.onopen = resolve;
@@ -514,24 +528,14 @@ function p2pFetch(method, path, body) {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
-// Support ?renderToken + ?connect (or #connect) from PHP mobile.html redirect
+// Support ?connect=deviceId for direct deep-link from PHP mobile.html
 (function initAutoConnect() {
   const qp = new URLSearchParams(location.search);
-  const hash = location.hash.replace('#', '');
-  const hp = new URLSearchParams(hash.includes('=') ? hash : '');
-
-  // Pre-auth token from PHP SSO redirect
-  const preToken = qp.get('renderToken');
-  if (preToken) {
-    TOKEN = preToken;
-    localStorage.setItem('mobile-token', TOKEN);
+  const autoDeviceId = qp.get('connect');
+  if (autoDeviceId) {
+    window._autoConnect = autoDeviceId;
+    history.replaceState(null, '', location.pathname);
   }
-
-  const autoDeviceId = qp.get('connect') || hp.get('connect');
-  if (autoDeviceId) window._autoConnect = autoDeviceId;
-
-  // Clean URL
-  if (preToken || autoDeviceId) history.replaceState(null, '', location.pathname);
 })();
 
 async function maybeAutoConnect() {
