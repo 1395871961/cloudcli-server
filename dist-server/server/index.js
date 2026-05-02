@@ -16,6 +16,7 @@ import express from 'express';
 import { WebSocketServer, WebSocket } from 'ws';
 import os from 'os';
 import http from 'http';
+import https from 'https';
 import cors from 'cors';
 import { promises as fsPromises } from 'fs';
 import { spawn } from 'child_process';
@@ -197,19 +198,30 @@ const wss = new WebSocketServer({
         console.log('WebSocket connection attempt to:', info.req.url);
         // /ws/signal with PHP signal token — async PHP callback validation
         if (path === '/ws/signal' && signalToken) {
-            const phpUrl = `https://mzycai.eu.cc/api/auth.php?action=verify-signal&token=${encodeURIComponent(signalToken)}`;
-            fetch(phpUrl)
-                .then(r => { if (!r.ok) throw new Error(`PHP returned ${r.status}`); return r.json(); })
-                .then(user => {
-                    info.req.user = { userId: user.id, username: user.username };
-                    console.log('[OK] PHP signal token auth for user:', user.username);
-                    cb(true);
-                })
-                .catch(err => {
-                    console.log('[WARN] PHP signal token validation failed:', err.message);
-                    cb(false, 401, 'Unauthorized');
+            const phpPath = `/api/auth.php?action=verify-signal&token=${encodeURIComponent(signalToken)}`;
+            const req = https.get({ hostname: 'mzycai.eu.cc', path: phpPath }, (res) => {
+                let raw = '';
+                res.on('data', chunk => raw += chunk);
+                res.on('end', () => {
+                    if (res.statusCode !== 200) {
+                        console.log(`[WARN] PHP signal token rejected: ${res.statusCode}`);
+                        cb(false, 401, 'Unauthorized');
+                        return;
+                    }
+                    try {
+                        const user = JSON.parse(raw);
+                        info.req.user = { userId: user.id, username: user.username };
+                        console.log('[OK] PHP signal token auth for user:', user.username);
+                        cb(true);
+                    } catch { cb(false, 401, 'Unauthorized'); }
                 });
-            return; // async — cb will be called later
+            });
+            req.on('error', err => {
+                console.log('[WARN] PHP signal token validation failed:', err.message);
+                cb(false, 503, 'Auth service unavailable');
+            });
+            req.end();
+            return; // async — cb called in callbacks above
         }
         // Platform mode: bypass JWT (for /ws/device Electron connections in platform mode)
         if (IS_PLATFORM) {
