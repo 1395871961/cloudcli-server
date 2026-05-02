@@ -1,7 +1,7 @@
 // Service Worker for CloudCLI PWA
 // Cache only manifest (needed for PWA install). HTML and JS are never pre-cached
 // so a rebuild + refresh always picks up the latest assets.
-const CACHE_NAME = 'claude-ui-v2';
+const CACHE_NAME = 'claude-ui-v3';
 const urlsToCache = [
   '/manifest.json'
 ];
@@ -100,7 +100,7 @@ self.addEventListener('fetch', event => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() =>
-        new Response('<h1>Offline</h1><p>Please check your connection.</p>', {
+        new Response('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Connecting…</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:-apple-system,sans-serif;background:#0f1117;color:#e2e6f3;flex-direction:column;gap:12px}.spinner{width:28px;height:28px;border:3px solid #2e3250;border-top-color:#6c8cff;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="spinner"></div><p style="font-size:14px;color:#8891b4">正在连接本地服务器…</p><script>setTimeout(()=>location.reload(),2000)</script></body></html>', {
           headers: { 'Content-Type': 'text/html' }
         })
       )
