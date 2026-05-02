@@ -250,6 +250,7 @@ async function doLogin() {
     localStorage.setItem('mobile-token', TOKEN);
     show('devices');
     await loadDevices();
+    maybeAutoConnect();
   } catch (e) {
     showError('login-error', '网络错误，请检查连接');
   } finally {
@@ -512,7 +513,36 @@ function p2pFetch(method, path, body) {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
-if (TOKEN) { show('devices'); loadDevices(); }
+// Support ?connect=deviceId or #connect=deviceId from PHP mobile.html redirect
+(function initAutoConnect() {
+  const hash = location.hash.replace('#', '');
+  const params = new URLSearchParams(hash.includes('=') ? hash : '');
+  const autoDeviceId = params.get('connect') || new URLSearchParams(location.search).get('connect');
+  if (autoDeviceId) {
+    window._autoConnect = autoDeviceId;
+    // Clear hash so refresh doesn't re-trigger
+    history.replaceState(null, '', location.pathname);
+  }
+})();
+
+async function maybeAutoConnect() {
+  if (!window._autoConnect) return;
+  const deviceId = window._autoConnect;
+  window._autoConnect = null;
+  // Wait for device list to render, then find and click the device
+  await new Promise(r => setTimeout(r, 400));
+  const devices = document.querySelectorAll('.device-item:not(.offline)');
+  for (const el of devices) {
+    const nameEl = el.querySelector('.device-name');
+    if (nameEl && nameEl.textContent.includes(deviceId.slice(0, 8))) {
+      el.click(); return;
+    }
+  }
+  // Fallback: try fake device by id
+  connectDevice({ id: deviceId, name: deviceId, platform: 'unknown', is_online: 1 });
+}
+
+if (TOKEN) { show('devices'); loadDevices().then(maybeAutoConnect); }
 </script>
 </body>
 </html>
